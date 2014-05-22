@@ -7,6 +7,10 @@ class HelloWorld : public cocos2d::CCLayer
 {
 public:
     
+    ~HelloWorld();  //析构函数，释放掉资源内存
+    
+    void updateArr(float dalta);
+    
     cocos2d::CCSprite *target;
     
     cocos2d::CCSize sceneSize;
@@ -19,6 +23,12 @@ public:
     
     void ccTouchesEnded(cocos2d::CCSet *pTouchs, cocos2d::CCEvent *pEvent);
     
+    
+    // array 插入删除效率低，查找效率高
+    // list 插入删除效率高，查找效率低
+    
+    cocos2d::CCArray *_targets;
+    cocos2d::CCArray *_projs;
     
     // Method 'init' in cocos2d-x returns bool, instead of 'id' in cocos2d-iphone (an object pointer)
     virtual bool init();

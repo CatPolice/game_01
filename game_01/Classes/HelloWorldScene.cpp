@@ -35,6 +35,13 @@ bool HelloWorld::init()
         return false;
     }
     
+    //cocos2dx中 Class::create() 这种工厂方法是不需要手动释放内存的，在coco2d底层中，自动加入到自动释放池中了。
+    // new 这种形式的，需要手动释放掉内存。一般放到析构函数中释放掉所占的内存
+    
+    
+    //初始化精灵数组
+    _targets = new CCArray;
+    _projs = new CCArray;
     
     //获取场景屏幕的大小
     sceneSize = CCDirector::sharedDirector()->getVisibleSize();
@@ -46,6 +53,8 @@ bool HelloWorld::init()
     
     this->schedule(schedule_selector(HelloWorld::gameLogic),2);//第一个参数响应方法第二个时间间隔
 //    this->schedule(schedule_selector(HelloWorld::createTarget));//返回参数不一致最好用方法过度下
+    
+    this->schedule(schedule_selector(HelloWorld::updateArr), 0.5);
     
     
     this->setTouchEnabled(true);//打开layer的点击响应事件
@@ -70,6 +79,9 @@ void HelloWorld::ccTouchesEnded(CCSet *pTouchs, CCEvent *pEvent){
     CCSprite *proj = CCSprite::create("Icon-Small.png");
     proj->setPosition(ccp(20, sceneSize.height/2.0));
     this->addChild(proj);
+    
+    _projs->addObject(proj);
+    proj->setTag(1);
     
     
     //-------------------------------------------------------------------------------------------------------------------
@@ -112,10 +124,13 @@ void HelloWorld::createTarget(){
     //随机个Y坐标出来
     int y = rand()%(int)(sceneSize.height);
     
-    
+    //创建个怪物出来
     CCSprite *targetMove = CCSprite::create("wtf.jpg");
     targetMove->setPosition(ccp(sceneSize.width - 40, y));
     this->addChild(targetMove);
+    
+    _targets->addObject(targetMove);
+    targetMove->setTag(2);
     
     
     //移动怪物
@@ -138,37 +153,82 @@ void HelloWorld::createTarget(){
  *
  */
 void HelloWorld::myDefine(CCNode *who){
-    who->setPosition(ccp(10, 10));
-    who->setScale(4);
+//    who->setPosition(ccp(10, 10));
+//    who->setScale(4);
     
     //将当前精灵从图层里擦掉
     who->removeFromParentAndCleanup(true);
+    
+    
+    //根据设置的tag去判断删除哪个arr里面元素
+    switch (who->getTag()) {
+        case 1:
+            _projs->removeObject(who);
+            break;
+        case 2:
+            _targets->removeObject(who);
+            break;
+        default:
+            break;
+    }
 }
 
-
-#pragma mark btn click ~~
-/**
- *
- * 菜单按钮响应事件处理  （废弃）
- *
- */
-void HelloWorld::menu_click_btn(CCObject *obj){
-//    CCLog("btn click ~~");
+#pragma mark update
+void HelloWorld::updateArr(float dalta){ //dalta = 1.0 / fps
     
-    //移动怪物
-    CCMoveTo *move = CCMoveTo::create(2, ccp(0, 40));
-
-//    target->runAction(move);
+    CCObject *i_targets;
+    CCObject *i_projs;
     
-    CCCallFuncN *disappear = CCCallFuncN::create(this, callfuncN_selector(HelloWorld::myDefine));
+    CCArray *targetToDelete = new CCArray;//存放要删除的元素数组
+    CCArray *projsToDelete = new CCArray;
     
-    //CCSequence 存贮动作相应集合
-    CCSequence *actions = CCSequence::create(move,disappear,NULL);
+    //2dx 提供了遍历数组的方法
+    //CCARRAY_FOREACH 遍历出来的为object，得需要强转下
+    CCARRAY_FOREACH(_targets, i_targets){
+        CCSprite *target = (CCSprite*)i_targets;
+        
+        CCRect targetZone = CCRectMake(target->getPositionX(), target->getPositionY(), target->getContentSize().width, target->getContentSize().height);
+        
+        
+        CCARRAY_FOREACH(_projs, i_projs){
+            CCSprite *proj = (CCSprite *)i_projs;
+            CCRect projZone = CCRectMake(proj->getPositionX(), proj->getPositionY(), proj->getContentSize().width, proj->getContentSize().height);
+            
+            if (projZone.intersectsRect(targetZone)) {
+                projsToDelete->addObject(i_projs);
+                targetToDelete->addObject(i_targets);
+            }
+        }
+    }
     
-    target->runAction(actions);
+    
+    CCARRAY_FOREACH(projsToDelete, i_projs){
+        _projs->removeObject(i_projs);
+        
+        CCSprite *proj = (CCSprite *)i_projs;
+        proj->removeFromParentAndCleanup(true);
+    }
+    
+    CCARRAY_FOREACH(targetToDelete, i_targets){
+        _targets->removeObject(i_targets);
+        
+        CCSprite *targ = (CCSprite *)i_targets;
+        targ->removeFromParentAndCleanup(true);
+    }
+    
+    
 }
 
-
+#pragma mark 析构函数
+HelloWorld::~HelloWorld(){
+    if (_projs != NULL) {
+        _projs->release();
+    }
+    
+    if (_targets != NULL) {
+        _targets->release();
+    }
+}
 
 #pragma mark call back click ~~
 /**
